@@ -4,12 +4,12 @@
  * Check dependencies
  */
 if( ! extension_loaded('sockets' ) ) {
-	echo "This example requires sockets extension (http://www.php.net/manual/en/sockets.installation.php)\n";
+	echo "Socket is not installed in this server (http://www.php.net/manual/en/sockets.installation.php)\n";
 	exit(-1);
 }
 
 if( ! extension_loaded('pcntl' ) ) {
-	echo "This example requires PCNTL extension (http://www.php.net/manual/en/pcntl.installation.php)\n";
+	echo "PCNTL extension not installed in this server (http://www.php.net/manual/en/pcntl.installation.php)\n";
 	exit(-1);
 }
 
