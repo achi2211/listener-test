@@ -220,7 +220,8 @@ if ($argv[1] == "LOC")
 } 
 elseif ($argv[1] == "DEV")
 {
-	$address = "52.91.200.69"; //development server
+	$address = "52.26.209.79"; //development server
+	
 
 	if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
     {
