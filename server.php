@@ -1,21 +1,30 @@
 <?php
 
+require "Logging.php";
+
+// Logging class initialization
+  $log = new Logging();
+ 
+// set path and name of log file (optional)
+  $log->lfile('/tmp/socket-listener.txt');
 /**
  * Check dependencies
  */
 if( ! extension_loaded('sockets' ) ) {
-	echo "This example requires sockets extension (http://www.php.net/manual/en/sockets.installation.php)\n";
+	  $log->lwrite("This example requires sockets extension (http://www.php.net/manual/en/sockets.installation.php)\n");
+	
 	exit(-1);
 }
 
 if( ! extension_loaded('pcntl' ) ) {
-	echo "This example requires PCNTL extension (http://www.php.net/manual/en/pcntl.installation.php)\n";
+	  $log->lwrite("This example requires PCNTL extension (http://www.php.net/manual/en/pcntl.installation.php)\n");
 	exit(-1);
 }
 
 //global variables
 $port = 54321;
 $m_dbh;
+ 
 
 
 /**
@@ -53,25 +62,25 @@ function onConnect( $client ) {
 			//establish connection with receiver
 	        if (substr($read, 0, 1) == 'N') 
 	        { 
-	            echo "event: " . $read . " received\n";
+	            $GLOBALS['log']->lwrite( "event: " . $read . " received\n");
 
 	            $ini = strpos($read, 'EVENT');
 	            $end = strlen($read);
 
 	            $event_id = substr($read, $ini + 5, $end);
 
-	            echo "Event ID: " . $event_id . "\n";
+	            $GLOBALS['log']->lwrite( "Event ID: " . $event_id . "\n");
 
 	            // $talkback = "S00000"."\r".chr(0); //this worked!
 	            $talkback = "S00000\r"; // sent command to receiver
 	            $client->send($talkback);
-	            echo " sent: ". $talkback . "\n";
+	            $GLOBALS['log']->lwrite( " sent: ". $talkback . "\n");
 	        }
 
 	         //receive events from the receiver
 	        if (substr($read, 0, 1) == 'D') 
 	        {
-	            echo "event data from event ID: " . $event_id . " data: $read \n";
+	              $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
 
 	            //regular expresion used to parse data
 	            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
@@ -84,14 +93,15 @@ function onConnect( $client ) {
 	                $val[3] = $pm[5];                       /* pc_id (antenna) */
 	                $val[4] = ltrim($pm[7]);                /* lap (hits) */
 
-	                echo 'formatted: '; var_dump($val); echo "\n"; 
+	               // echo 'formatted: '; var_dump($val); echo "\n"; 
+	                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
 
 	                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
 
 	                if ($return_value == 1) 
 	                {
 	                    $time = time();  
-	                    echo 'inserted row with transid = ' . $val[1] . "\n";
+	                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
 	                }
 	            }
 
@@ -215,7 +225,7 @@ if ($argv[1] == "LOC")
     }
     else 
     {
-       echo "Error connecting with dev database"; die();
+          $GLOBALS['log']->lwrite( "Error connecting with dev database"); die();
     }
 } 
 elseif ($argv[1] == "DEV")
@@ -230,11 +240,11 @@ elseif ($argv[1] == "DEV")
     }
     else 
     {
-       echo "Error connecting with dev database"; die();
+          $GLOBALS['log']->lwrite( "Error connecting with dev database"); die();
     }
 } elseif ($argv[1] == "PROD") 
 {
-	$address = "54.86.132.203"; //production server
+	$address = "172.31.51.253"; //production server
 
     if ($GLOBALS['m_dbh'] = mysql_connect("j-chipusa-db-prod.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
     {
@@ -243,7 +253,7 @@ elseif ($argv[1] == "DEV")
     }
     else 
     {
-        echo "Error connecting with prod database"; die();
+           $GLOBALS['log']->lwrite( "Error connecting with prod database"); die();
     }
 }
 
