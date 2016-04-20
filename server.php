@@ -2,6 +2,8 @@
 
 require "Logging.php";
 
+error_reporting(E_ALL);
+
 // Logging class initialization
   $log = new Logging();
  
@@ -64,46 +66,113 @@ function onConnect( $client ) {
 	        { 
 	            $GLOBALS['log']->lwrite( "event: " . $read . " received\n");
 
+	            echo "event: " . $read . " received\n";
+
 	            $ini = strpos($read, 'EVENT');
 	            $end = strlen($read);
 
 	            $event_id = substr($read, $ini + 5, $end);
 
 	            $GLOBALS['log']->lwrite( "Event ID: " . $event_id . "\n");
+	            echo "Event ID: " . $event_id . "\n";
 
 	            // $talkback = "S00000"."\r".chr(0); //this worked!
+
 	            $talkback = "S00000\r"; // sent command to receiver
 	            $client->send($talkback);
 	            $GLOBALS['log']->lwrite( " sent: ". $talkback . "\n");
+	            echo " sent: ". $talkback ."\n";
 	        }
 
 	         //receive events from the receiver
 	        if (substr($read, 0, 1) == 'D') 
 	        {
-	              $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
+	             $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
 
-	            //regular expresion used to parse data
-	            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
+	             echo "event data from event ID: " . $event_id . " data: $read \n";
 
-	            if (preg_match($pattern, substr($read, 1, strlen($read)), $pm)) 
+	             $data_exploded = explode(" ", $read);
+
+	            if(COUNT($data_exploded) <= 6)
 	            {
-	                $val[0] = $pm[1];                       /* box */
-	                $val[1] = $pm[2];                       /* transid */
-	                $val[2] = cvTimeDbl($pm[3].".".$pm[4]); /* time.msecs */
-	                $val[3] = $pm[5];                       /* pc_id (antenna) */
-	                $val[4] = ltrim($pm[7]);                /* lap (hits) */
+		            //regular expresion used to parse data
+		            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
 
-	               // echo 'formatted: '; var_dump($val); echo "\n"; 
-	                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
+		            if (preg_match($pattern, substr($read, 1, strlen($read)), $pm)) 
+		            {
+		                $val[0] = $pm[1];                       /* box */
+		                $val[1] = $pm[2];                       /* transid */
+		                $val[2] = cvTimeDbl($pm[3].".".$pm[4]); /* time.msecs */
+		                $val[3] = $pm[5];                       /* pc_id (antenna) */
+		                $val[4] = ltrim($pm[7]);                /* lap (hits) */
 
-	                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
+		               // echo 'formatted: '; var_dump($val); echo "\n"; 
+		                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
 
-	                if ($return_value == 1) 
-	                {
-	                    $time = time();  
-	                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
-	                }
-	            }
+		                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
+
+		                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
+
+		                if ($return_value == 1) 
+		                {
+		                    $time = time();  
+		                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
+		                       echo 'inserted row with transid = ' . $val[1] . "\n";
+		                }
+		            }
+
+		         // this case is used when the receiver has saved scanned chips - all data are sending in one string
+		        }else
+		        {
+		        	$GLOBALS['log']->lwrite('Disconnected data feature'. "\n");
+		        	echo 'Disconnected data feature'. "\n";
+
+		        	$index = 0;
+		        	$data = '';
+		        	for ($i = 0; $i < COUNT($data_exploded); $i++) 
+		        	{ 
+		        		$data .= $data_exploded[$i].' ';
+
+		        		if ($index == 5)
+		        		{
+		        			$row = substr($data, 0, strlen($data)-1);
+
+		        			//regular expresion used to parse data
+				            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
+
+				            if (preg_match($pattern, substr($row, 1, strlen($row)), $pm)) 
+				            {
+				                $val[0] = $pm[1];                       /* box */
+				                $val[1] = $pm[2];                       /* transid */
+				                $val[2] = cvTimeDbl($pm[3].".".$pm[4]); /* time.msecs */
+				                $val[3] = $pm[5];                       /* pc_id (antenna) */
+				                $val[4] = ltrim($pm[7]);                /* lap (hits) */
+
+				               // echo 'formatted: '; var_dump($val); echo "\n"; 
+				                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
+
+				                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
+
+				                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
+
+				                if ($return_value == 1) 
+				                {
+				                    $time = time();  
+				                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
+				                       echo 'inserted row with transid = ' . $val[1] . "\n";
+				                }
+				            }
+
+		        			//inicialize vars
+		        			$data  = '';
+		        			$index = 0;
+		        		}else
+		        		{
+		        			$index++;
+		        		}
+		        		
+		        	}
+		        }
 
 	        }
 		}
@@ -230,7 +299,7 @@ if ($argv[1] == "LOC")
 } 
 elseif ($argv[1] == "DEV")
 {
-	$address = "172.31.21.203"; //development server
+	$address = "172.31.51.253"; //development server
 	
 
 	if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
