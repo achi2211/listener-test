@@ -91,6 +91,7 @@ function onConnect( $client ) {
 
 	             echo "event data from event ID: " . $event_id . " data: $read \n";
 
+		     $read = preg_replace('/[^A-Za-z0-9.,-:\-\']/', ' ', $read);
 	             $data_exploded = explode(" ", $read);
 
 	            if(COUNT($data_exploded) <= 6)
@@ -106,7 +107,6 @@ function onConnect( $client ) {
 		                $val[3] = $pm[5];                       /* pc_id (antenna) */
 		                $val[4] = ltrim($pm[7]);                /* lap (hits) */
 
-		               // echo 'formatted: '; var_dump($val); echo "\n"; 
 		                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
 
 		                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
@@ -129,6 +129,9 @@ function onConnect( $client ) {
 
 		        	$index = 0;
 		        	$data = '';
+				
+
+
 		        	for ($i = 0; $i < COUNT($data_exploded); $i++) 
 		        	{ 
 		        		$data .= $data_exploded[$i].' ';
@@ -136,6 +139,10 @@ function onConnect( $client ) {
 		        		if ($index == 5)
 		        		{
 		        			$row = substr($data, 0, strlen($data)-1);
+
+ 						 $GLOBALS['log']->lwrite( " row: ". $row . "\n");
+						 echo " row: ". $row ."\n";
+
 
 		        			//regular expresion used to parse data
 				            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
@@ -148,7 +155,6 @@ function onConnect( $client ) {
 				                $val[3] = $pm[5];                       /* pc_id (antenna) */
 				                $val[4] = ltrim($pm[7]);                /* lap (hits) */
 
-				               // echo 'formatted: '; var_dump($val); echo "\n"; 
 				                $GLOBALS['log']->lwrite("formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n");
 
 				                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
@@ -246,7 +252,7 @@ function AddtoResults($m_dbh, $eventid, $col, $rs, $num)
 
 //  echo "INSERT ALResults.rid$eventid SET ".substr($set,1)."<br \>";
     execute($m_dbh, "INSERT ALResults.rid$eventid SET ".substr($set,1));
-
+     $GLOBALS['log']->lwrite( "INSERT ALResults.rid$eventid SET ".substr($set,1). "\n");
     return 1;
 }
 
