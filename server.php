@@ -4,7 +4,7 @@ require "Logging.php";
 
 error_reporting(E_ALL);
 
-// Logging class initialization
+// Logging class initialization update 2.0
   $log = new Logging();
  
 // set path and name of log file (optional)
@@ -26,6 +26,7 @@ if( ! extension_loaded('pcntl' ) ) {
 //global variables
 $port = 54321;
 $m_dbh;
+$arg_type = "LOC"; //default
  
 
 
@@ -87,12 +88,12 @@ function onConnect( $client ) {
 	         //receive events from the receiver
 	        if (substr($read, 0, 1) == 'D') 
 	        {
-	             $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
+	            $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
 
-	             echo "event data from event ID: " . $event_id . " data: $read \n";
+	            echo "event data from event ID: " . $event_id . " data: $read \n";
 
-		     $read = preg_replace('/[^A-Za-z0-9.,-:\-\']/', ' ', $read);
-	             $data_exploded = explode(" ", $read);
+		     	$read = preg_replace('/[^A-Za-z0-9.,-:\-\']/', ' ', $read);
+	            $data_exploded = explode(" ", trim($read));
 
 	            if(COUNT($data_exploded) <= 6)
 	            {
@@ -111,13 +112,17 @@ function onConnect( $client ) {
 
 		                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
 
-		                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
+		                $return_value = AddtoResults($event_id, $col, $val, $num);
 
 		                if ($return_value == 1) 
 		                {
 		                    $time = time();  
 		                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
 		                       echo 'inserted row with transid = ' . $val[1] . "\n";
+		                }else
+		                {
+		                	$GLOBALS['log']->lwrite( 'row NO inserted transid = ' . $val[1] . "\n");
+		                    echo 'row NO inserted transid = ' . $val[1] . "\n";
 		                }
 		            }
 
@@ -140,8 +145,8 @@ function onConnect( $client ) {
 		        		{
 		        			$row = substr($data, 0, strlen($data)-1);
 
- 						 $GLOBALS['log']->lwrite( " row: ". $row . "\n");
-						 echo " row: ". $row ."\n";
+	 						 $GLOBALS['log']->lwrite( " row first parse: ". $row . "\n");
+							 echo " row first parse: ". $row ."\n";
 
 
 		        			//regular expresion used to parse data
@@ -159,14 +164,18 @@ function onConnect( $client ) {
 
 				                echo "formatted-> box: " . $val[0] . " transid: " . $val[1] . " time.msecs: " . $val[2] . " antenna: " . $val[3] . " hits: " . $val[4] ."\n";
 
-				                $return_value = AddtoResults($GLOBALS['m_dbh'], $event_id, $col, $val, $num);
+				                $return_value = AddtoResults($event_id, $col, $val, $num);
 
 				                if ($return_value == 1) 
 				                {
 				                    $time = time();  
 				                       $GLOBALS['log']->lwrite( 'inserted row with transid = ' . $val[1] . "\n");
 				                       echo 'inserted row with transid = ' . $val[1] . "\n";
-				                }
+				                }else
+				                {
+		                			$GLOBALS['log']->lwrite( 'row NO inserted transid = ' . $val[1] . "\n");
+		                    		echo 'row NO inserted transid = ' . $val[1] . "\n";
+		                		}
 				            }
 
 		        			//inicialize vars
@@ -234,8 +243,9 @@ function cvtimeDbl($strtime) {
         return $t + $d;
 }
 
-function AddtoResults($m_dbh, $eventid, $col, $rs, $num) 
+function AddtoResults($eventid, $col, $rs, $num) 
 {
+	$m_dbname = "ALResults";
     $set   = '';
     $where = '';
     foreach ($num as $v) {
@@ -246,13 +256,58 @@ function AddtoResults($m_dbh, $eventid, $col, $rs, $num)
     $where .= " && `$col[$v]`='".addslashes($rs[$v])."'";
     }
 
+	//define database to use
+	if ($GLOBALS['arg_type'] == "LOC")
+	{
+		if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
+	    {
+	      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
+	      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
+	    }
+	    else 
+	    {
+	    	error_log("Error connecting with dev database");
+	        $GLOBALS['log']->lwrite("Error connecting with dev database"); die();
+	    }
+	} 
+	elseif ($GLOBALS['arg_type'] == "DEV")
+	{
+		if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
+	    {
+	      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
+	      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
+	    }
+	    else 
+	    {
+	    	error_log("Error connecting with dev database");
+	        $GLOBALS['log']->lwrite( "Error connecting with dev database"); die();
+	    }
+	} elseif ($GLOBALS['arg_type'] == "PROD") 
+	{
+	    if ($GLOBALS['m_dbh'] = mysql_connect("j-chipusa-db-prod.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
+	    {
+	      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
+	      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
+	    }
+	    else 
+	    {
+	    	error_log("Error connecting with dev database");
+	        $GLOBALS['log']->lwrite( "Error connecting with prod database"); die();
+	    }
+	}
+
   /* ignore if identical or within a few seconds */
-  if (selectone($m_dbh, "rID", "ALResults.rid$eventid", substr($where,4)))
-    return 0;
+    if (selectone($GLOBALS['m_dbh'], "rID", "ALResults.rid$eventid", substr($where,4)))
+    {
+    	mysql_close();
+    	return 0;
+    }
+    
 
 //  echo "INSERT ALResults.rid$eventid SET ".substr($set,1)."<br \>";
-    execute($m_dbh, "INSERT ALResults.rid$eventid SET ".substr($set,1));
-     $GLOBALS['log']->lwrite( "INSERT ALResults.rid$eventid SET ".substr($set,1). "\n");
+    $GLOBALS['log']->lwrite( "execute INSERT ALResults.rid$eventid SET ".substr($set,1). "\n");
+    execute($GLOBALS['m_dbh'], "INSERT ALResults.rid$eventid SET ".substr($set,1));
+    mysql_close();
     return 1;
 }
 
@@ -271,8 +326,11 @@ function selectone($m_dbh, $what, $from, $where = "", $group = "", $order = "")
     mysql_free_result($m_resultone);
     return $rs;
     } else {
-    error_log("Error [ ".mysql_errno()." ] ".mysql_error()."<br /># ".
-        strtr($sql,array("<"=>"&lt;",">"=>"&gt;"))."<br />\n");
+    	$GLOBALS['log']->lwrite("Error in select method [ ".mysql_errno()." ] ".mysql_error()."\n");
+    	error_log("Error in select method [ ".mysql_errno()." ] ".mysql_error()."\n");
+    	$GLOBALS['log']->lwrite(strtr($sql, array("<"=>"&lt;",">"=>"&gt;"))."\n");
+    	echo strtr($sql, array("<"=>"&lt;",">"=>"&gt;"))."\n";
+       
     }
     return false;
 }
@@ -280,6 +338,8 @@ function selectone($m_dbh, $what, $from, $where = "", $group = "", $order = "")
 function execute($m_dbh, $sql) {
   if (!mysql_query($sql, $m_dbh)) {
     error_log("Error [ ".mysql_errno()." ] ".mysql_error()."<br \>\n");
+    echo "Error [ ".mysql_errno()." ] ".mysql_error()."<br \>\n";
+    $GLOBALS['log']->lwrite("Error in execute method [ ".mysql_errno()." ] ".mysql_error()."\n");
     return false;
   }
   return true;
@@ -287,49 +347,25 @@ function execute($m_dbh, $sql) {
 
 require "sock/SocketServer.php";
 
-$m_dbname = "ALResults";
-
 if ($argv[1] == "LOC")
 {
 	$address = "127.0.0.1"; //localhost
 
-	if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
-    {
-      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
-      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
-    }
-    else 
-    {
-          $GLOBALS['log']->lwrite( "Error connecting with dev database"); die();
-    }
+	$GLOBALS['arg_type'] = $argv[1];
+
 } 
 elseif ($argv[1] == "DEV")
 {
 	$address = "172.31.51.253"; //development server
 	
+	$GLOBALS['arg_type'] = $argv[1];
 
-	if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
-    {
-      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
-      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
-    }
-    else 
-    {
-          $GLOBALS['log']->lwrite( "Error connecting with dev database"); die();
-    }
 } elseif ($argv[1] == "PROD") 
 {
 	$address = "172.31.51.253"; //production server
 
-    if ($GLOBALS['m_dbh'] = mysql_connect("j-chipusa-db-prod.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%")) 
-    {
-      mysql_select_db($m_dbname, $GLOBALS['m_dbh']);
-      mysql_set_charset('utf8', $GLOBALS['m_dbh']);
-    }
-    else 
-    {
-           $GLOBALS['log']->lwrite( "Error connecting with prod database"); die();
-    }
+	$GLOBALS['arg_type'] = $argv[1];
+
 }
 
 $server = new \Sock\SocketServer($port, $address);
