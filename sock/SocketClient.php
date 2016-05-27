@@ -21,7 +21,7 @@ class SocketClient {
 		socket_write($this->connection, $message, strlen($message));
 	}
 	
-	public function read($len = 123693415 ) {
+	public function read($len = 18360000 ) {
 		if ( ( $buf = @socket_read( $this->connection, $len, PHP_BINARY_READ  ) ) === false ) {
 				return null;
 		}

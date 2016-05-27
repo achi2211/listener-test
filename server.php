@@ -3,6 +3,7 @@
 require "Logging.php";
 
 error_reporting(E_ALL);
+set_time_limit(0);
 
 // Logging class initialization update 2.0
   $log = new Logging();
@@ -27,7 +28,6 @@ if( ! extension_loaded('pcntl' ) ) {
 $port = 54321;
 $m_dbh;
 $arg_type = "LOC"; //default
- 
 
 
 /**
@@ -56,7 +56,7 @@ function onConnect( $client ) {
 		return;
 	}
 
-		//define database to use
+     //define database to use
 	if ($GLOBALS['arg_type'] == "LOC")
 	{
 		if ($GLOBALS['m_dbh'] = mysql_connect("brandx-test-db.cr6c86g1nups.us-east-1.rds.amazonaws.com","athlete2","runner2%", true)) 
@@ -98,18 +98,25 @@ function onConnect( $client ) {
 	
 	$read = '';
 	printf( "[%s] Connected at port %d\n", $client->getAddress(), $client->getPort() );
+    $GLOBALS['log']->lwrite("Connected at: ". $client->getAddress() ." port: ". $client->getPort() );
 
+	$data = '';
 
-	while( true ) {
+	while( true ) 
+	{
 		$read = $client->read();
 
-		if( $read != '' ) {
+		if( $read != '' ) 
+		{
+            $GLOBALS['log']->lwrite( "first read: " . $read);
+            echo "first read: " . $read;
+
 			//establish connection with receiver
 	        if (substr($read, 0, 1) == 'N') 
 	        { 
-	            $GLOBALS['log']->lwrite( "event: " . $read . " received\n");
+	            $GLOBALS['log']->lwrite( "event: " . $read . "\n");
 
-	            echo "event: " . $read . " received\n";
+	            echo "event: " . $read . "\n";
 
 	            $ini = strpos($read, 'EVENT');
 	            $end = strlen($read);
@@ -126,23 +133,17 @@ function onConnect( $client ) {
 	            $GLOBALS['log']->lwrite( " sent: ". $talkback . "\n");
 	            echo " sent: ". $talkback ."\n";
 
-	            $talkback = "E\r"; // sent stop command to receiver
-	            $client->send($talkback);
-	            $GLOBALS['log']->lwrite( " sent: ". $talkback . "\n");
-	            echo " sent: ". $talkback ."\n";
 	        }
 
 	         //receive events from the receiver
-	        if (substr($read, 0, 1) == 'D') 
+	        if (substr($read, 0, 1) == 'D' OR substr($read, 0, 1) != 'N') 
 	        {
-	            $GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " data: $read \n");
+	            $GLOBALS['log']->lwrite( "inside D data: $read \n");
 
-	            echo "event data from event ID: " . $event_id . " data: $read \n";
+	            echo "inside D data: $read \n";
 
-		     	$read = preg_replace('/[^A-Za-z0-9.,-:\-\']/', ' ', $read);
-	            $data_exploded = explode(" ", trim($read));
-
-	            if(COUNT($data_exploded) <= 6)
+	            //online data
+	            if(strlen($read) <= 40)
 	            {
 		            //regular expresion used to parse data
 		            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
@@ -173,33 +174,43 @@ function onConnect( $client ) {
 		                }
 		            }
 
-		         // this case is used when the receiver has saved scanned chips - all data are sending in one string
+		         // offline data sent by receiver
 		        }else
 		        {
 		        	$GLOBALS['log']->lwrite('Disconnected data feature'. "\n");
 		        	echo 'Disconnected data feature'. "\n";
 
-		        	$index = 0;
-		        	$data = '';
-				
+		        	//convert packet to hex
+		        	$hex = bin2hex($read);
+                	//$GLOBALS['log']->lwrite( "event data from event ID: " . $event_id . " hex: $hex \n");
+          
+          			//replace _end_of_line to '-'
+         	     	$hex_replaced = str_replace("0d", "2d", $hex);
+            	   // $GLOBALS['log']->lwrite( "hex replaced: $hex_replaced \n");
+
+         	     	//convert hex replaced in ascii again, with new _end_of_line
+         	     	$read = pack('H*', $hex_replaced);
+
+         	     	$GLOBALS['log']->lwrite( "final read: $read \n");
+
+            	    //string buffer
+            	    $GLOBALS['log']->lwrite("data: ".$data."\n");
 
 
-		        	for ($i = 0; $i < COUNT($data_exploded); $i++) 
-		        	{ 
-		        		$data .= $data_exploded[$i].' ';
+		        	$str = $read;
+					$strlen = strlen( $str );
+					for( $i = 0; $i <= $strlen; $i++ ) 
+					{
+					    $char = substr( $str, $i, 1 );
+					    if ($char == "-")
+					    {
+					    	$GLOBALS['log']->lwrite( "row: ". $data ."\n");
+					    	echo "row: " . $data . "\n";
 
-		        		if ($index == 5)
-		        		{
-		        			$row = substr($data, 0, strlen($data)-1);
-
-	 						 $GLOBALS['log']->lwrite( " row first parse: ". $row . "\n");
-							 echo " row first parse: ". $row ."\n";
-
-
-		        			//regular expresion used to parse data
+					    	//regular expresion used to parse data
 				            $pattern = "/^(.)(.{6}) (.{8})\.(.{2})(.{2}) 1(.)(.{3})(.{4})/s";
 
-				            if (preg_match($pattern, substr($row, 1, strlen($row)), $pm)) 
+				            if (preg_match($pattern, substr($data, 1, strlen($data)), $pm)) 
 				            {
 				                $val[0] = $pm[1];                       /* box */
 				                $val[1] = $pm[2];                       /* transid */
@@ -225,16 +236,13 @@ function onConnect( $client ) {
 		                		}
 				            }
 
-		        			//inicialize vars
-		        			$data  = '';
-		        			$index = 0;
-		        		}else
-		        		{
-		        			$index++;
-		        		}
-		        		
-		        	}
-		        }
+					    	$data = '';
+					    }else
+					        $data .= $char;
+
+					}
+
+			    }
 		           
 	        }
 		}
@@ -249,9 +257,7 @@ function onConnect( $client ) {
 			printf( "[%s] Disconnected in while \n", $client->getAddress() );
 			return false;
 		}
-		else {
-			printf( "[%s] recieved: %s", $client->getAddress(), $read );
-		}
+		
 
 	}
 	$client->close();
